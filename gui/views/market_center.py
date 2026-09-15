@@ -179,20 +179,20 @@ class ThemeCardDetailsThread(QThread):
 class ThemeCardWidget(QFrame):
     """
     티마(TIMA) 스타일 주도 테마 카드 위젯
-    각 테마별로 대장주/2등주/3등주 및 등락률, 거래대금, 사유를 한눈에 볼 수 있는 카드
+    상태 보존(펼침 상태 유지) 및 실시간 데이터 갱신 지원
     """
     stockSelected = pyqtSignal(str, str) # code, name
-    themeDetailRequested = pyqtSignal(int, str) # theme_no, theme_name
 
-    def __init__(self, rank: int, theme_info: dict, parent=None):
+    def __init__(self, rank: int, theme_info: dict, parent=None, is_expanded=False):
         super().__init__(parent)
         self.rank = rank
         self.theme_info = theme_info
         self.theme_no = theme_info.get("no")
         self.theme_name = theme_info.get("name", "")
         self.stocks = []
-        self.is_expanded = False
+        self.is_expanded = is_expanded
         self.thread = None
+        self.is_loading = False
 
         self.setProperty("class", "tima-card")
         self.init_ui()
@@ -211,39 +211,29 @@ class ThemeCardWidget(QFrame):
         h_layout.setSpacing(8)
 
         # Rank Badge
-        rank_bg = "#d29922" if self.rank == 1 else ("#8b949e" if self.rank in (2, 3) else "#30363d")
-        lbl_rank = QLabel(f"{self.rank:02d}")
-        lbl_rank.setStyleSheet(f"background-color: {rank_bg}; color: #0d1117; font-weight: 900; font-size: 11px; border-radius: 3px; padding: 2px 5px;")
-        lbl_rank.setFixedWidth(24)
-        lbl_rank.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        h_layout.addWidget(lbl_rank)
+        self.lbl_rank = QLabel(f"{self.rank:02d}")
+        self.lbl_rank.setFixedWidth(24)
+        self.lbl_rank.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._update_rank_badge()
+        h_layout.addWidget(self.lbl_rank)
 
         # Theme Name
-        lbl_name = QLabel(self.theme_name)
-        lbl_name.setStyleSheet("font-size: 14px; font-weight: 800; color: #f0f6fc;")
-        lbl_name.setToolTip(self.theme_name)
-        h_layout.addWidget(lbl_name)
+        self.lbl_name = QLabel(self.theme_name)
+        self.lbl_name.setStyleSheet("font-size: 14px; font-weight: 800; color: #f0f6fc;")
+        self.lbl_name.setToolTip(self.theme_name)
+        h_layout.addWidget(self.lbl_name)
 
         h_layout.addStretch()
 
         # Change Rate
-        rate_str = str(self.theme_info.get("changeRate", "0.00"))
-        try:
-            rate_val = float(rate_str)
-        except Exception:
-            rate_val = 0.0
-        sign = "+" if rate_val > 0 else ""
-        rate_color = "#f85149" if rate_val > 0 else ("#58a6ff" if rate_val < 0 else "#8b949e")
-        lbl_rate = QLabel(f"{sign}{rate_val:.2f}%")
-        lbl_rate.setStyleSheet(f"font-size: 14px; font-weight: 900; color: {rate_color};")
-        h_layout.addWidget(lbl_rate)
+        self.lbl_rate = QLabel("")
+        self._update_rate_badge()
+        h_layout.addWidget(self.lbl_rate)
 
         # Counts
-        rise = self.theme_info.get("riseCount", 0)
-        fall = self.theme_info.get("fallCount", 0)
-        lbl_counts = QLabel(f"▲{rise} ▼{fall}")
-        lbl_counts.setStyleSheet("font-size: 10px; color: #8b949e; margin-left: 4px;")
-        h_layout.addWidget(lbl_counts)
+        self.lbl_counts = QLabel("")
+        self._update_counts_badge()
+        h_layout.addWidget(self.lbl_counts)
 
         self.layout.addWidget(header_frame)
 
@@ -260,28 +250,73 @@ class ThemeCardWidget(QFrame):
         self.layout.addWidget(self.stocks_container)
 
         # ── Bottom Control / Expand Button ──────────────────
-        self.btn_more = QPushButton("전체 종목 보기 ▼")
+        self.btn_more = QPushButton("전체 종목 보기 ▼" if not self.is_expanded else "접기 ▲")
         self.btn_more.setProperty("class", "tool-btn")
         self.btn_more.setStyleSheet("font-size: 11px; padding: 3px; color: #8b949e;")
         self.btn_more.clicked.connect(self.toggle_expand)
         self.btn_more.setVisible(False)
         self.layout.addWidget(self.btn_more)
 
+    def _update_rank_badge(self):
+        rank_bg = "#d29922" if self.rank == 1 else ("#8b949e" if self.rank in (2, 3) else "#30363d")
+        self.lbl_rank.setText(f"{self.rank:02d}")
+        self.lbl_rank.setStyleSheet(f"background-color: {rank_bg}; color: #0d1117; font-weight: 900; font-size: 11px; border-radius: 3px; padding: 2px 5px;")
+
+    def _update_rate_badge(self):
+        rate_str = str(self.theme_info.get("changeRate", "0.00"))
+        try:
+            rate_val = float(rate_str)
+        except Exception:
+            rate_val = 0.0
+        sign = "+" if rate_val > 0 else ""
+        rate_color = "#f85149" if rate_val > 0 else ("#58a6ff" if rate_val < 0 else "#8b949e")
+        self.lbl_rate.setText(f"{sign}{rate_val:.2f}%")
+        self.lbl_rate.setStyleSheet(f"font-size: 14px; font-weight: 900; color: {rate_color};")
+
+    def _update_counts_badge(self):
+        rise = self.theme_info.get("riseCount", 0)
+        fall = self.theme_info.get("fallCount", 0)
+        self.lbl_counts.setText(f"▲{rise} ▼{fall}")
+        self.lbl_counts.setStyleSheet("font-size: 10px; color: #8b949e; margin-left: 4px;")
+
+    def update_theme_data(self, rank: int, theme_info: dict, refresh_stocks: bool = False):
+        """기존 카드 위젯의 UI 데이터를 부드럽게 갱신 (펼침 상태 유지)"""
+        self.rank = rank
+        self.theme_info = theme_info
+        self.theme_name = theme_info.get("name", self.theme_name)
+        self.lbl_name.setText(self.theme_name)
+        self._update_rank_badge()
+        self._update_rate_badge()
+        self._update_counts_badge()
+
+        # 이미 데이터가 있고 펼쳐져 있다면 화면 렌더링 유지
+        if self.stocks:
+            self.render_stocks_view(limit=len(self.stocks) if self.is_expanded else 3)
+            self.btn_more.setVisible(len(self.stocks) > 3)
+            self.btn_more.setText("접기 ▲" if self.is_expanded else "전체 종목 보기 ▼")
+
+        if refresh_stocks or not self.stocks:
+            self.load_stocks()
+
     def load_stocks(self):
+        if self.is_loading:
+            return
+        self.is_loading = True
         self.thread = ThemeCardDetailsThread(self.theme_no)
         self.thread.stocksLoaded.connect(self.on_stocks_loaded)
         self.thread.start()
 
     def on_stocks_loaded(self, theme_no, stocks, desc):
+        self.is_loading = False
         if theme_no != self.theme_no:
             return
         self.stocks = stocks
-        self.render_stocks_view(limit=3)
+        self.render_stocks_view(limit=len(self.stocks) if self.is_expanded else 3)
         if len(stocks) > 3:
             self.btn_more.setVisible(True)
+            self.btn_more.setText("접기 ▲" if self.is_expanded else "전체 종목 보기 ▼")
 
     def render_stocks_view(self, limit=3):
-        # Clear container
         while self.stocks_layout.count():
             item = self.stocks_layout.takeAt(0)
             if item.widget():
@@ -397,7 +432,7 @@ class MarketCenterView(QWidget):
         self.selected_theme_no = None
         self.selected_theme_name = ""
         self.current_stocks = []
-        self.card_widgets = []
+        self.card_widgets_map = {} # theme_no -> ThemeCardWidget
         self.current_view_mode = "card" # 'card' or 'table'
 
         self.init_ui()
@@ -421,7 +456,7 @@ class MarketCenterView(QWidget):
 
         tb_layout.addStretch()
 
-        # View Mode Toggle: [🗂️ 카드 뷰 (티마)] / [📊 표 뷰 (전문가)]
+        # View Mode Toggle: [🗂️ 티마 카드] / [📊 표 뷰 (전문가)]
         self.btn_mode_card = QPushButton("🗂️ 티마 카드")
         self.btn_mode_card.setProperty("class", "tool-btn")
         self.btn_mode_card.setCheckable(True)
@@ -572,22 +607,39 @@ class MarketCenterView(QWidget):
         self.render_themes(themes_list)
 
     def render_themes(self, themes):
-        # 1. Render Card View (TIMA Style)
-        # Clear existing cards
-        while self.card_layout.count():
-            item = self.card_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        self.card_widgets.clear()
+        # 1. Render Card View (상태 유지 및 위치 보존)
+        scrollbar = self.scroll_area.verticalScrollBar()
+        old_scroll_val = scrollbar.value()
+
+        # 현재 리스트에 포함된 테마 번호 집합
+        current_theme_nos = set()
 
         for idx, t in enumerate(themes):
             rank = idx + 1
-            card = ThemeCardWidget(rank, t)
-            card.stockSelected.connect(self.stockSelected.emit)
-            self.card_layout.addWidget(card)
-            self.card_widgets.append(card)
+            t_no = t.get("no")
+            current_theme_nos.add(t_no)
 
-        self.card_layout.addStretch()
+            if t_no in self.card_widgets_map:
+                card = self.card_widgets_map[t_no]
+                card.update_theme_data(rank, t)
+                # 레이아웃 상의 순서가 변경되었을 수 있으므로 다시 배치
+                self.card_layout.removeWidget(card)
+                self.card_layout.addWidget(card)
+            else:
+                card = ThemeCardWidget(rank, t)
+                card.stockSelected.connect(self.stockSelected.emit)
+                self.card_widgets_map[t_no] = card
+                self.card_layout.addWidget(card)
+
+        # 더 이상 테마 목록에 없는 이전 카드 위젯만 정리
+        obsolete_nos = [t_no for t_no in self.card_widgets_map if t_no not in current_theme_nos]
+        for t_no in obsolete_nos:
+            card = self.card_widgets_map.pop(t_no)
+            self.card_layout.removeWidget(card)
+            card.deleteLater()
+
+        # 스크롤 위치 복원
+        scrollbar.setValue(old_scroll_val)
 
         # 2. Render Table View (Classic 2-Panel)
         self.theme_table.setRowCount(len(themes))
@@ -642,8 +694,15 @@ class MarketCenterView(QWidget):
     def filter_themes(self, text):
         query = text.strip().lower()
         if not query:
+            for card in self.card_widgets_map.values():
+                card.setVisible(True)
             self.render_themes(self.themes_data)
             return
+
+        for card in self.card_widgets_map.values():
+            visible = query in card.theme_name.lower()
+            card.setVisible(visible)
+
         filtered = [t for t in self.themes_data if query in t.get("name", "").lower()]
         self.render_themes(filtered)
 
