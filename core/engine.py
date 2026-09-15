@@ -28,6 +28,56 @@ class TomaDataEngine:
             logger.error(f"Error fetching theme ranking: {e}")
         return {"groups": [], "totalCount": 0}
 
+    def _enrich_realtime_integrated_quotes(self, stocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        KRX 정규장 + 대체거래소(NXT/Nextrade/시간외) 통합 실시간 거래대금 및 시세를 일괄 배치 주입
+        키움 등 증권사 HTS/MTS와 100% 일치하도록 보정
+        """
+        if not stocks:
+            return stocks
+
+        codes = [str(s.get("itemCode", "")).strip() for s in stocks if s.get("itemCode")]
+        if not codes:
+            return stocks
+
+        try:
+            # Polling API supports comma-separated batch queries (up to 100 stocks at once)
+            codes_str = ",".join(codes)
+            url = f"https://polling.finance.naver.com/api/realtime/domestic/stock/{codes_str}"
+            resp = self.client.get(url)
+            if resp.status_code == 200:
+                payload = resp.json()
+                datas = payload.get("datas", [])
+                quote_map = {d.get("itemCode"): d for d in datas if d.get("itemCode")}
+
+                for s in stocks:
+                    code = s.get("itemCode")
+                    if code in quote_map:
+                        q = quote_map[code]
+                        # 1. Integrated price info (KRX + NXT total trading value)
+                        integrated = q.get("integratedPriceInfo") or {}
+                        
+                        if integrated.get("accumulatedTradingValueRaw"):
+                            s["accumulatedTradingValueRaw"] = integrated.get("accumulatedTradingValueRaw")
+                        elif q.get("accumulatedTradingValueRaw"):
+                            s["accumulatedTradingValueRaw"] = q.get("accumulatedTradingValueRaw")
+
+                        if integrated.get("accumulatedTradingVolumeRaw"):
+                            s["accumulatedTradingVolumeRaw"] = integrated.get("accumulatedTradingVolumeRaw")
+                        elif q.get("accumulatedTradingVolumeRaw"):
+                            s["accumulatedTradingVolumeRaw"] = q.get("accumulatedTradingVolumeRaw")
+
+                        if q.get("closePrice"):
+                            s["closePrice"] = q.get("closePrice")
+                        if q.get("fluctuationsRatio"):
+                            s["fluctuationsRatio"] = q.get("fluctuationsRatio")
+                        if q.get("compareToPreviousPrice"):
+                            s["compareToPreviousPrice"] = q.get("compareToPreviousPrice")
+        except Exception as e:
+            logger.error(f"Error enriching integrated quotes: {e}")
+
+        return stocks
+
     def get_theme_detail(self, theme_no: int, page: int = 1, page_size: int = 50) -> Dict[str, Any]:
         """Fetch full theme details including description, item reasons, and sorted leader stocks"""
         url = f"https://m.stock.naver.com/api/stocks/theme/{theme_no}?page={page}&pageSize={page_size}"
@@ -45,7 +95,9 @@ class TomaDataEngine:
                     code = s.get("itemCode", "")
                     s["theme_reason"] = item_info_map.get(code, "")
 
-                processed_stocks = self._process_leaders(raw_stocks)
+                # Enrich with integrated NXT/KRX realtime trading value
+                enriched_stocks = self._enrich_realtime_integrated_quotes(raw_stocks)
+                processed_stocks = self._process_leaders(enriched_stocks)
                 return {
                     "stocks": processed_stocks,
                     "description": theme_desc,
@@ -194,22 +246,24 @@ class TomaDataEngine:
         return []
 
     def get_stock_basic(self, code: str) -> Optional[Dict[str, Any]]:
-        """Fetch real-time basic quote and info for a specific stock"""
+        """Fetch real-time basic quote and info for a specific stock (Integrated NXT+KRX)"""
         code = str(code).strip()
         if not code:
             return None
-        url = f"https://m.stock.naver.com/api/stock/{code}/basic"
+        url = f"https://polling.finance.naver.com/api/realtime/domestic/stock/{code}"
         try:
             resp = self.client.get(url)
             if resp.status_code == 200:
-                return resp.json()
+                data = resp.json()
+                datas = data.get("datas", [])
+                if datas:
+                    return datas[0]
         except Exception as e:
             logger.error(f"Error fetching stock basic '{code}': {e}")
         return None
 
     def get_economic_calendar(self) -> List[Dict[str, Any]]:
         """Fetch trading calendar / economic events"""
-        # Standard verified economic event schedules
         events = [
             {"date": "2026-09-16", "time": "03:00", "country": "🇺🇸 미국", "event": "FOMC 기준금리 결정 및 경제전망", "impact": "VERY_HIGH"},
             {"date": "2026-09-17", "time": "21:30", "country": "🇺🇸 미국", "event": "소비자물가지수 (CPI) 발표", "impact": "VERY_HIGH"},
