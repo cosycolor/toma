@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TOMA Pro | 주도주 트레이딩 인텔리전스</title>
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+  
+  <style>
+    :root {
+      --bg-main: #0d1117;
+      --bg-surface: #161b22;
+      --bg-surface-alt: #21262d;
+      --bg-card: #141a23;
+      --bg-hover: #1f2937;
+      --border: #30363d;
+      --border-focus: #58a6ff;
+      --text-main: #f0f6fc;
+      --text-muted: #8b949e;
+      --cyan: #39c5cf;
+      --bull-red: #f85149;
+      --bear-blue: #58a6ff;
+      --gold: #e3b341;
+      --silver: #8b949e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* ── Top Header ───────────────────────────────────── */
+    header {
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-logo {
+      font-size: 17px;
+      font-weight: 900;
+      color: var(--cyan);
+      letter-spacing: -0.5px;
+    }
+
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--cyan);
+      background-color: rgba(57, 197, 207, 0.1);
+      border: 1px solid rgba(57, 197, 207, 0.3);
+      padding: 2px 6px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .brand-badge::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--cyan);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background-color: var(--bg-surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+      background-color: var(--bg-hover);
+      border-color: var(--border-focus);
+    }
+
+    /* ── Navigation Tabs ──────────────────────────────── */
+    nav {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 4px 12px;
+      gap: 6px;
+    }
+
+    nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-tab {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-main);
+      background-color: var(--bg-surface-alt);
+    }
+
+    .nav-tab.active {
+      color: var(--cyan);
+      background-color: rgba(57, 197, 207, 0.12);
+      border-bottom: 2px solid var(--cyan);
+    }
+
+    /* ── Main Container ───────────────────────────────── */
+    main {
+      flex: 1;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 12px 14px 40px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Search & Filter Bar ──────────────────────────── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      flex: 1;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--cyan);
+    }
+
+    .update-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── TIMA Style Theme Card ────────────────────────── */
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tima-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      transition: border-color 0.2s, transform 0.1s;
+    }
+
+    .tima-card:hover {
+      border-color: rgba(57, 197, 207, 0.5);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-surface-alt);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .rank-badge {
+      font-size: 11px;
+      font-weight: 900;
+      color: #0d1117;
+      background-color: var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .rank-1 { background-color: var(--gold); }
+    .rank-2, .rank-3 { background-color: #a0aec0; }
+
+    .theme-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-meta-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .theme-rate {
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .theme-rate.bull { color: var(--bull-red); }
+    .theme-rate.bear { color: var(--bear-blue); }
+
+    .theme-counts {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Stock Rows Inside Card */
+    .stocks-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stock-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: #0e141c;
+      border: 1px solid rgba(48, 54, 61, 0.4);
+      border-radius: 5px;
+      padding: 6px 10px;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .stock-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .leader-tag {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .leader-1 { color: var(--gold); }
+    .leader-2 { color: #cbd5e1; }
+    .leader-3 { color: var(--cyan); }
+    .leader-sub { color: #64748b; }
+
+    .stock-name {
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stock-name.upper {
+      color: var(--gold);
+    }
+
+    .btn-fav {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px;
+      transition: color 0.2s;
+    }
+
+    .btn-fav:hover, .btn-fav.active {
+      color: var(--gold);
+    }
+
+    .stock-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .stock-rate {
+      font-weight: 800;
+      font-size: 12px;
+      min-width: 55px;
+      text-align: right;
+    }
+
+    .stock-rate.upper-badge {
+      background-color: rgba(248, 81, 73, 0.2);
+      color: #ff7b72;
+      border: 1px solid rgba(248, 81, 73, 0.4);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .stock-rate.bull { color: var(--bull-red); }
+    .stock-rate.bear { color: var(--bear-blue); }
+
+    .stock-val {
+      font-size: 11px;
+      min-width: 50px;
+      text-align: right;
+      color: var(--text-muted);
+    }
+
+    .stock-val.fire {
+      color: var(--cyan);
+      font-weight: 700;
+    }
+
+    .stock-reason-tag {
+      display: none;
+      font-size: 11px;
+      color: #8b949e;
+      background-color: #121820;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-top: 2px;
+      border-left: 2px solid var(--cyan);
+    }
+
+    .btn-card-expand {
+      width: 100%;
+      background-color: var(--bg-surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-card-expand:hover {
+      color: var(--text-main);
+      background-color: var(--bg-hover);
+    }
+
+    /* ── News Tab ─────────────────────────────────────── */
+    .news-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .news-card:hover {
+      border-color: var(--cyan);
+    }
+
+    .news-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .news-stock-tag {
+      background-color: rgba(57, 197, 207, 0.15);
+      color: var(--cyan);
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .news-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+
+    .news-summary {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ── Calendar Tab ─────────────────────────────────── */
+    .calendar-event {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .event-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .event-date {
+      font-size: 11px;
+      color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .event-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .impact-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .impact-VERY_HIGH { background-color: rgba(248, 81, 73, 0.2); color: #ff7b72; border: 1px solid rgba(248, 81, 73, 0.4); }
+    .impact-HIGH { background-color: rgba(227, 179, 65, 0.2); color: #e3b341; border: 1px solid rgba(227, 179, 65, 0.4); }
+    .impact-MEDIUM { background-color: rgba(88, 166, 255, 0.2); color: #58a6ff; }
+
+    /* ── Watchlist Tab ────────────────────────────────── */
+    .watchlist-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .watchlist-item {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .memo-input {
+      background-color: var(--bg-surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      width: 130px;
+    }
+
+    /* ── Modal ────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalIn 0.2s ease-out;
+    }
+
+    @keyframes modalIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #c9d1d9;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-top">
+      <div class="brand">
+        <span class="brand-logo">⚡ TOMA Pro</span>
+        <span class="brand-badge" id="liveBadge">실시간</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="btnRefresh" title="새로고침">🔄 새로고침</button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav>
+      <button class="nav-tab active" data-tab="tabMarket">👑 주도주</button>
+      <button class="nav-tab" data-tab="tabCalendar">📅 마켓일정</button>
+      <button class="nav-tab" data-tab="tabNews">📰 특징주 뉴스</button>
+      <button class="nav-tab" data-tab="tabWatchlist">⭐ 관심종목</button>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- TAB 1: Market Leaders (TIMA Card View) -->
+    <div id="tabMarket" class="tab-content active">
+      <div class="filter-bar">
+        <input type="text" id="searchThemes" class="search-input" placeholder="🔍 테마/종목 실시간 검색...">
+        <span class="update-time" id="lastUpdateTime">갱신 중...</span>
+      </div>
+      <div id="themeCardList" class="card-list">
+        <!-- Dynamic Cards -->
+      </div>
+    </div>
+
+    <!-- TAB 2: Calendar -->
+    <div id="tabCalendar" class="tab-content">
+      <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-muted);">
+        📅 주요 경제 지표 발표 및 증시 핵심 일정
+      </div>
+      <div id="calendarList">
+        <!-- Dynamic Calendar -->
+      </div>
+    </div>
+
+    <!-- TAB 3: News -->
+    <div id="tabNews" class="tab-content">
+      <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-muted);">
+        📰 실시간 특징주 속보 및 시장 공시
+      </div>
+      <div id="newsList">
+        <!-- Dynamic News -->
+      </div>
+    </div>
+
+    <!-- TAB 4: Watchlist -->
+    <div id="tabWatchlist" class="tab-content">
+      <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-muted);">
+        ⭐ 등록된 관심종목 및 매매 메모 (브라우저 자동 저장)
+      </div>
+      <div id="watchlistContainer">
+        <!-- Dynamic Watchlist -->
+      </div>
+    </div>
+  </main>
+
+  <!-- News Content Modal -->
+  <div id="newsModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">기사 원문</span>
+        <button class="btn-icon" id="btnCloseModal">✕ 닫기</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        로딩 중...
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Application Script -->
+  <script>
+    // State Store
+    let allThemes = [];
+    let themeDetailCache = {}; // theme_no -> details
+    let expandedThemes = new Set();
+    let watchlist = JSON.parse(localStorage.getItem("toma_watchlist") || "[]");
+
+    // Elements
+    const tabButtons = document.querySelectorAll(".nav-tab");
+    const tabContents = document.querySelectorAll(".tab-content");
+    const themeCardList = document.getElementById("themeCardList");
+    const searchThemes = document.getElementById("searchThemes");
+    const lastUpdateTime = document.getElementById("lastUpdateTime");
+    const btnRefresh = document.getElementById("btnRefresh");
+    const calendarList = document.getElementById("calendarList");
+    const newsList = document.getElementById("newsList");
+    const watchlistContainer = document.getElementById("watchlistContainer");
+    const newsModal = document.getElementById("newsModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalBody = document.getElementById("modalBody");
+    const btnCloseModal = document.getElementById("btnCloseModal");
+
+    // ── Tab Switching ────────────────────────────────────
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach(b => b.classList.remove("active"));
+        tabContents.forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        const target = document.getElementById(btn.dataset.tab);
+        if (target) target.classList.add("active");
+
+        if (btn.dataset.tab === "tabCalendar") loadCalendar();
+        if (btn.dataset.tab === "tabNews") loadNews();
+        if (btn.dataset.tab === "tabWatchlist") renderWatchlist();
+      });
+    });
+
+    // ── Fetch & Render Themes ────────────────────────────
+    async function fetchThemes() {
+      try {
+        const resp = await fetch("/api/themes?page=1&page_size=50");
+        const data = await resp.json();
+        allThemes = data.groups || [];
+        renderThemeCards();
+        lastUpdateTime.innerText = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " 갱신";
+      } catch (err) {
+        console.error("Error fetching themes:", err);
+      }
+    }
+
+    function renderThemeCards() {
+      const query = searchThemes.value.trim().toLowerCase();
+      const filtered = allThemes.filter(t => !query || (t.name && t.name.toLowerCase().includes(query)));
+
+      themeCardList.innerHTML = "";
+
+      filtered.forEach((t, idx) => {
+        const rank = idx + 1;
+        const rateNum = parseFloat(t.changeRate || "0");
+        const sign = rateNum > 0 ? "+" : "";
+        const rateClass = rateNum > 0 ? "bull" : (rateNum < 0 ? "bear" : "");
+        const rankClass = rank === 1 ? "rank-1" : (rank <= 3 ? "rank-2" : "");
+
+        const card = document.createElement("div");
+        card.className = "tima-card";
+        card.id = `theme-card-${t.no}`;
+
+        card.innerHTML = `
+          <div class="card-header" onclick="toggleThemeExpand(${t.no})">
+            <div class="card-title-group">
+              <span class="rank-badge ${rankClass}">${String(rank).padStart(2, '0')}</span>
+              <span class="theme-name">${t.name}</span>
+            </div>
+            <div class="card-meta-group">
+              <span class="theme-rate ${rateClass}">${sign}${rateNum.toFixed(2)}%</span>
+              <span class="theme-counts">▲${t.riseCount} ▼${t.fallCount}</span>
+            </div>
+          </div>
+          <div class="stocks-stream" id="stocks-stream-${t.no}">
+            <div style="font-size:11px; color:var(--text-muted); padding:4px;">⏳ 대장주/수급 분석 로딩 중...</div>
+          </div>
+          <button class="btn-card-expand" id="btn-expand-${t.no}" onclick="toggleThemeExpand(${t.no})">
+            ${expandedThemes.has(t.no) ? "접기 ▲" : "전체 종목 보기 ▼"}
+          </button>
+        `;
+
+        themeCardList.appendChild(card);
+        loadThemeStocks(t.no);
+      });
+    }
+
+    async function loadThemeStocks(themeNo) {
+      if (themeDetailCache[themeNo]) {
+        renderStocksInCard(themeNo, themeDetailCache[themeNo]);
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/themes/${themeNo}`);
+        const data = await resp.json();
+        themeDetailCache[themeNo] = data.stocks || [];
+        renderStocksInCard(themeNo, themeDetailCache[themeNo]);
+      } catch (err) {
+        console.error(`Error fetching detail for theme ${themeNo}:`, err);
+      }
+    }
+
+    function renderStocksInCard(themeNo, stocks) {
+      const container = document.getElementById(`stocks-stream-${themeNo}`);
+      if (!container) return;
+
+      const isExpanded = expandedThemes.has(themeNo);
+      const displayStocks = isExpanded ? stocks : stocks.slice(0, 3);
+
+      if (!displayStocks.length) {
+        container.innerHTML = `<div style="font-size:11px; color:var(--text-muted); padding:4px;">종목 정보 없음</div>`;
+        return;
+      }
+
+      container.innerHTML = displayStocks.map(s => {
+        const rateNum = parseFloat(String(s.fluctuationsRatio || "0").replace(/,/g, ""));
+        const sign = rateNum > 0 ? "+" : "";
+        const isUpper = s.is_upper_limit || rateNum >= 29.8;
+        const valRaw = parseFloat(String(s.accumulatedTradingValueRaw || "0").replace(/,/g, ""));
+        
+        let valStr = "-";
+        let isFire = false;
+        if (valRaw >= 100000000000) {
+          valStr = `🔥${Math.round(valRaw / 100000000).toLocaleString()}억`;
+          isFire = true;
+        } else if (valRaw >= 50000000000) {
+          valStr = `⚡${Math.round(valRaw / 100000000).toLocaleString()}억`;
+          isFire = true;
+        } else if (valRaw > 0) {
+          valStr = `${Math.round(valRaw / 100000000).toLocaleString()}억`;
+        }
+
+        const tag = s.leader_tag || "후발주";
+        const tagClass = tag.includes("👑") ? "leader-1" : (tag.includes("🥈") ? "leader-2" : (tag.includes("🥉") ? "leader-3" : "leader-sub"));
+        
+        let rateHtml = `<span class="stock-rate ${rateNum > 0 ? 'bull' : (rateNum < 0 ? 'bear' : '')}">${sign}${rateNum.toFixed(2)}%</span>`;
+        if (isUpper) {
+          rateHtml = `<span class="stock-rate upper-badge">★상한가</span>`;
+        }
+
+        const isFav = watchlist.some(w => w.code === s.itemCode);
+
+        return `
+          <div class="stock-row">
+            <div class="stock-left">
+              <span class="leader-tag ${tagClass}">${tag}</span>
+              <span class="stock-name ${isUpper ? 'upper' : ''}" title="${s.stockName} (${s.itemCode})">${s.stockName}</span>
+              <button class="btn-fav ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${s.itemCode}', '${s.stockName}')" title="관심종목 추가/해제">
+                ${isFav ? '★' : '☆'}
+              </button>
+            </div>
+            <div class="stock-right">
+              ${rateHtml}
+              <span class="stock-val ${isFire ? 'fire' : ''}">${valStr}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      const btnExpand = document.getElementById(`btn-expand-${themeNo}`);
+      if (btnExpand) {
+        btnExpand.style.display = stocks.length > 3 ? "block" : "none";
+        btnExpand.innerText = isExpanded ? "접기 ▲" : "전체 종목 보기 ▼";
+      }
+    }
+
+    function toggleThemeExpand(themeNo) {
+      if (expandedThemes.has(themeNo)) {
+        expandedThemes.delete(themeNo);
+      } else {
+        expandedThemes.add(themeNo);
+      }
+      if (themeDetailCache[themeNo]) {
+        renderStocksInCard(themeNo, themeDetailCache[themeNo]);
+      }
+    }
+
+    searchThemes.addEventListener("input", renderThemeCards);
+    btnRefresh.addEventListener("click", () => {
+      themeDetailCache = {};
+      fetchThemes();
+    });
+
+    // ── Calendar Tab ─────────────────────────────────────
+    async function loadCalendar() {
+      try {
+        const resp = await fetch("/api/calendar");
+        const data = await resp.json();
+        const events = data.events || [];
+        calendarList.innerHTML = events.map(e => `
+          <div class="calendar-event">
+            <div class="event-left">
+              <span class="event-date">📅 ${e.date} ${e.time} | ${e.country}</span>
+              <span class="event-name">${e.event}</span>
+            </div>
+            <span class="impact-badge impact-${e.impact}">${e.impact}</span>
+          </div>
+        `).join("");
+      } catch (err) {
+        console.error("Error loading calendar:", err);
+      }
+    }
+
+    // ── News Tab ─────────────────────────────────────────
+    async function loadNews() {
+      try {
+        const resp = await fetch("/api/news");
+        const data = await resp.json();
+        const items = data.items || [];
+        newsList.innerHTML = items.map(n => `
+          <div class="news-card" onclick="openNews('${n.oid}', '${n.aid}', '${n.title.replace(/'/g, "\\'")}')">
+            <div class="news-header">
+              <span>${n.press} • ${n.datetime}</span>
+              ${n.stock && n.stock !== '-' ? `<span class="news-stock-tag">${n.stock}</span>` : ''}
+            </div>
+            <div class="news-title">${n.title}</div>
+            <div class="news-summary">${n.summary}</div>
+          </div>
+        `).join("");
+      } catch (err) {
+        console.error("Error loading news:", err);
+      }
+    }
+
+    async function openNews(oid, aid, title) {
+      modalTitle.innerText = title;
+      modalBody.innerText = "기사 본문 불러오는 중...";
+      newsModal.classList.add("active");
+
+      try {
+        const resp = await fetch(`/api/news/content?oid=${oid}&aid=${aid}`);
+        const data = await resp.json();
+        modalBody.innerText = data.content || "기사 본문을 불러올 수 없습니다.";
+      } catch (err) {
+        modalBody.innerText = "기사를 가져오는 중 오류가 발생했습니다.";
+      }
+    }
+
+    btnCloseModal.addEventListener("click", () => newsModal.classList.remove("active"));
+    newsModal.addEventListener("click", (e) => {
+      if (e.target === newsModal) newsModal.classList.remove("active");
+    });
+
+    // ── Watchlist Management ─────────────────────────────
+    function toggleWatchlist(code, name) {
+      const existingIdx = watchlist.findIndex(w => w.code === code);
+      if (existingIdx >= 0) {
+        watchlist.splice(existingIdx, 1);
+      } else {
+        watchlist.push({ code, name, memo: "테마 주도주" });
+      }
+      localStorage.setItem("toma_watchlist", JSON.stringify(watchlist));
+      renderThemeCards();
+      renderWatchlist();
+    }
+
+    function renderWatchlist() {
+      if (!watchlist.length) {
+        watchlistContainer.innerHTML = `
+          <div class="watchlist-empty">
+            ⭐ 등록된 관심종목이 없습니다.<br>
+            주도주 화면에서 별표(☆)를 눌러 관심종목을 등록해 보세요!
+          </div>
+        `;
+        return;
+      }
+
+      watchlistContainer.innerHTML = watchlist.map((w, idx) => `
+        <div class="watchlist-item">
+          <div>
+            <span style="font-weight:800; font-size:14px;">${w.name}</span>
+            <span style="font-size:11px; color:var(--text-muted); margin-left:4px;">(${w.code})</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="text" class="memo-input" value="${w.memo || ''}" placeholder="메모 입력..." onchange="updateMemo(${idx}, this.value)">
+            <button class="btn-icon" style="color:var(--bull-red);" onclick="removeWatchlist(${idx})">✕</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function updateMemo(idx, val) {
+      if (watchlist[idx]) {
+        watchlist[idx].memo = val;
+        localStorage.setItem("toma_watchlist", JSON.stringify(watchlist));
+      }
+    }
+
+    function removeWatchlist(idx) {
+      watchlist.splice(idx, 1);
+      localStorage.setItem("toma_watchlist", JSON.stringify(watchlist));
+      renderThemeCards();
+      renderWatchlist();
+    }
+
+    // ── Auto Refresh Timer (Every 20s) ───────────────────
+    fetchThemes();
+    setInterval(fetchThemes, 20000);
+  </script>
+</body>
+</html>
