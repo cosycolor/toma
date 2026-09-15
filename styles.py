@@ -141,4 +141,46 @@ QLineEdit, QTextEdit {{
 QLineEdit:focus, QTextEdit:focus {{
     border: 1px solid {COLORS['border_focus']};
 }}
+
+/* TIMA Style Theme Cards */
+QFrame.tima-card {{
+    background-color: {COLORS['bg_surface']};
+    border: 1px solid {COLORS['border']};
+    border-radius: 8px;
+    padding: 8px;
+}}
+
+QFrame.tima-card:hover {{
+    border: 1px solid {COLORS['cyan']};
+    background-color: #1a222d;
+}}
+
+QFrame.tima-card-header {{
+    background-color: {COLORS['bg_surface_alt']};
+    border-radius: 5px;
+    padding: 6px 10px;
+}}
+
+/* Mini mode toggle button */
+QPushButton.tool-btn {{
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+}}
+
+QPushButton.tool-btn:hover {{
+    background-color: #30363d;
+    color: #58a6ff;
+}}
+
+QPushButton.tool-btn:checked {{
+    background-color: #1f3549;
+    color: #39c5cf;
+    border: 1px solid #39c5cf;
+}}
 """
+
