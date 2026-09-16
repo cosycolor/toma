@@ -225,6 +225,11 @@ class ThemeCardWidget(QFrame):
 
         h_layout.addStretch()
 
+        # Top 3 Trading Value Badge
+        self.lbl_top3_val = QLabel("")
+        self._update_top3_badge()
+        h_layout.addWidget(self.lbl_top3_val)
+
         # Change Rate
         self.lbl_rate = QLabel("")
         self._update_rate_badge()
@@ -262,6 +267,15 @@ class ThemeCardWidget(QFrame):
         self.lbl_rank.setText(f"{self.rank:02d}")
         self.lbl_rank.setStyleSheet(f"background-color: {rank_bg}; color: #0d1117; font-weight: 900; font-size: 11px; border-radius: 3px; padding: 2px 5px;")
 
+    def _update_top3_badge(self):
+        top3_eok = self.theme_info.get("top3_tr_val_eok", 0)
+        if top3_eok and top3_eok > 0:
+            self.lbl_top3_val.setText(f"⚡Top3 {top3_eok:,}억")
+            self.lbl_top3_val.setStyleSheet("font-size: 10px; font-weight: 700; color: #39c5cf; background-color: rgba(57, 197, 207, 0.12); border-radius: 4px; padding: 2px 5px;")
+            self.lbl_top3_val.setVisible(True)
+        else:
+            self.lbl_top3_val.setVisible(False)
+
     def _update_rate_badge(self):
         rate_str = str(self.theme_info.get("changeRate", "0.00"))
         try:
@@ -286,8 +300,14 @@ class ThemeCardWidget(QFrame):
         self.theme_name = theme_info.get("name", self.theme_name)
         self.lbl_name.setText(self.theme_name)
         self._update_rank_badge()
+        self._update_top3_badge()
         self._update_rate_badge()
         self._update_counts_badge()
+
+        # pre_stocks가 있고 현재 종목이 없다면 즉시 반영
+        if not self.stocks and theme_info.get("pre_stocks"):
+            self.stocks = theme_info.get("pre_stocks")
+            self.render_stocks_view(limit=3)
 
         # 이미 데이터가 있고 펼쳐져 있다면 화면 렌더링 유지
         if self.stocks:
@@ -299,6 +319,10 @@ class ThemeCardWidget(QFrame):
             self.load_stocks()
 
     def load_stocks(self):
+        if self.theme_info.get("pre_stocks") and not self.stocks:
+            self.stocks = self.theme_info.get("pre_stocks")
+            self.render_stocks_view(limit=3)
+
         if self.is_loading:
             return
         self.is_loading = True

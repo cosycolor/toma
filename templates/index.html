@@ -726,11 +726,11 @@
     // ── Fetch & Render Themes ────────────────────────────
     async function fetchThemes() {
       try {
-        const resp = await fetch("/api/themes?page=1&page_size=50");
+        const resp = await fetch("/api/themes?leading=true&top_n=6");
         const data = await resp.json();
         allThemes = data.groups || [];
         renderThemeCards();
-        lastUpdateTime.innerText = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " 갱신";
+        lastUpdateTime.innerText = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " 갱신 (Top 6)";
       } catch (err) {
         console.error("Error fetching themes:", err);
       }
@@ -748,6 +748,12 @@
         const sign = rateNum > 0 ? "+" : "";
         const rateClass = rateNum > 0 ? "bull" : (rateNum < 0 ? "bear" : "");
         const rankClass = rank === 1 ? "rank-1" : (rank <= 3 ? "rank-2" : "");
+        const top3ValStr = t.top3_tr_val_eok ? `<span style="font-size:10px; color:var(--cyan); background:rgba(57,197,207,0.1); padding:1px 5px; border-radius:4px; font-weight:700;">⚡Top3 ${t.top3_tr_val_eok.toLocaleString()}억</span>` : "";
+
+        // Pre-cache stocks if provided by backend
+        if (t.pre_stocks && t.pre_stocks.length && !themeDetailCache[t.no]) {
+          themeDetailCache[t.no] = t.pre_stocks;
+        }
 
         const card = document.createElement("div");
         card.className = "tima-card";
@@ -759,7 +765,8 @@
               <span class="rank-badge ${rankClass}">${String(rank).padStart(2, '0')}</span>
               <span class="theme-name">${t.name}</span>
             </div>
-            <div class="card-meta-group">
+            <div class="card-meta-group" style="display:flex; align-items:center; gap:6px;">
+              ${top3ValStr}
               <span class="theme-rate ${rateClass}">${sign}${rateNum.toFixed(2)}%</span>
               <span class="theme-counts">▲${t.riseCount} ▼${t.fallCount}</span>
             </div>
@@ -778,9 +785,8 @@
     }
 
     async function loadThemeStocks(themeNo) {
-      if (themeDetailCache[themeNo]) {
+      if (themeDetailCache[themeNo] && themeDetailCache[themeNo].length) {
         renderStocksInCard(themeNo, themeDetailCache[themeNo]);
-        return;
       }
       try {
         const resp = await fetch(`/api/themes/${themeNo}`);
@@ -788,6 +794,9 @@
         themeDetailCache[themeNo] = data.stocks || [];
         renderStocksInCard(themeNo, themeDetailCache[themeNo]);
       } catch (err) {
+        console.error(`Error fetching detail for theme ${themeNo}:`, err);
+      }
+    }
         console.error(`Error fetching detail for theme ${themeNo}:`, err);
       }
     }

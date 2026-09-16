@@ -18,8 +18,7 @@ class DataWorkerThread(QThread):
     themesLoaded = pyqtSignal(list)
 
     def run(self):
-        data = engine.get_theme_ranking(page=1, page_size=50)
-        themes = data.get("groups", [])
+        themes = engine.get_leading_themes(top_n=6, candidate_count=25)
         self.themesLoaded.emit(themes)
 
 class MainWindow(QMainWindow):

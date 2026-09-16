@@ -1,9 +1,11 @@
 import httpx
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("toma_engine")
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 class TomaDataEngine:
     """High-performance data engine for TOMA Desktop (Naver Finance / Open APIs)"""
@@ -27,6 +29,132 @@ class TomaDataEngine:
         except Exception as e:
             logger.error(f"Error fetching theme ranking: {e}")
         return {"groups": [], "totalCount": 0}
+
+    def get_leading_themes(self, top_n: int = 6, candidate_count: int = 25) -> List[Dict[str, Any]]:
+        """
+        실전 주도 테마 선별 알고리즘 (초대형주 왜곡 제거 + 모멘텀/상한가/거래대금 복합 평가)
+        1. 삼성전자/하이닉스 등 초대형주 1개로 인한 거래대금 왜곡을 막기 위해 단일 종목 거래대금에 Capping(최대 4,000억원) 적용
+        2. 상한가 보유 개수 및 20% 이상 급등주에 강력한 모멘텀 가중치(Multiplier) 부여
+        3. 테마 평균 등락률의 지수 가중치 (테마 등락률이 높을수록 시장 중심 테마로 평가)
+        4. 상위 top_n개 테마 정렬 반환
+        """
+        ranking_data = self.get_theme_ranking(page=1, page_size=candidate_count)
+        candidates = ranking_data.get("groups", [])
+        if not candidates:
+            return []
+
+        # 각 후보 테마의 상세 종목을 초고속 병렬 수집 (ThreadPoolExecutor)
+        theme_details = {}
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_theme = {
+                executor.submit(self.get_theme_detail, t.get("no")): t
+                for t in candidates if t.get("no")
+            }
+            for future in future_to_theme:
+                theme_info = future_to_theme[future]
+                try:
+                    detail = future.result()
+                    theme_details[theme_info.get("no")] = detail
+                except Exception as e:
+                    logger.error(f"Error fetching theme detail in worker: {e}")
+
+        scored_themes = []
+        fallback_themes = []
+
+        for t in candidates:
+            t_no = t.get("no")
+            detail = theme_details.get(t_no, {})
+            stocks = detail.get("stocks", [])
+            
+            try:
+                theme_rate = float(str(t.get("changeRate", "0")).replace(",", ""))
+            except Exception:
+                theme_rate = 0.0
+
+            rise_cnt = int(t.get("riseCount", 0) or 0)
+            fall_cnt = int(t.get("fallCount", 0) or 0)
+            total_cnt = rise_cnt + fall_cnt
+            rise_ratio = rise_cnt / max(1, total_cnt)
+
+            # 종목별 거래대금 및 등락률 분석
+            raw_tr_vals = []
+            capped_tr_vals = []
+            upper_count = 0
+            over20_count = 0
+            top1_rate = 0.0
+
+            for idx, s in enumerate(stocks):
+                try:
+                    rate = float(str(s.get("fluctuationsRatio", 0)).replace(",", ""))
+                except Exception:
+                    rate = 0.0
+
+                if idx == 0:
+                    top1_rate = rate
+
+                if s.get("is_upper_limit") or rate >= 29.8:
+                    upper_count += 1
+                elif rate >= 20.0:
+                    over20_count += 1
+
+                try:
+                    val_raw = s.get("accumulatedTradingValueRaw", 0)
+                    val = float(str(val_raw).replace(",", "")) if val_raw else 0.0
+                except Exception:
+                    val = 0.0
+                
+                val_eok = val / 100_000_000.0  # 억원 단위
+                raw_tr_vals.append(val_eok)
+                # 단일 종목 Capping (최대 4,000억원까지만 테마 주도성 기여로 인정하여 대형주 1개 독식 방지)
+                capped_tr_vals.append(min(val_eok, 4000.0))
+
+            raw_tr_vals.sort(reverse=True)
+            capped_tr_vals.sort(reverse=True)
+
+            top3_raw_val = sum(raw_tr_vals[:3])
+            top3_capped_val = sum(capped_tr_vals[:3])
+
+            # 모멘텀 & 대장주 파워 보너스 (상한가 1개당 1.6배, 2개 이상 2.2배, 20% 이상 급등주 1.35배)
+            if upper_count >= 2:
+                momentum_multiplier = 2.2
+            elif upper_count == 1:
+                momentum_multiplier = 1.6
+            elif over20_count >= 1:
+                momentum_multiplier = 1.35
+            elif top1_rate >= 10.0:
+                momentum_multiplier = 1.15
+            else:
+                momentum_multiplier = 1.0
+
+            # 복합 주도주 점수 (Leader Power Score)
+            # (Top3 Capped 거래대금) * (테마등락률^1.3) * (상승비율) * 모멘텀배수
+            score = top3_capped_val * (max(0.5, theme_rate) ** 1.3) * max(0.3, rise_ratio) * momentum_multiplier
+
+            enriched_theme = dict(t)
+            enriched_theme["leader_score"] = round(score, 1)
+            enriched_theme["top3_tr_val_eok"] = int(round(top3_raw_val)) # 표기는 실제 거래대금 표기
+            enriched_theme["rise_ratio"] = round(rise_ratio * 100, 1)
+            enriched_theme["upper_count"] = upper_count
+            enriched_theme["pre_stocks"] = stocks[:5]
+
+            # 게이트 필터: 최소 자격 검증 (상승률 1.0% 이상, 상승비율 35% 이상, 대장주 3% 이상)
+            is_qualified = (theme_rate >= 1.0) and (rise_ratio >= 0.35) and (top1_rate >= 3.0)
+
+            if is_qualified:
+                scored_themes.append(enriched_theme)
+            else:
+                fallback_themes.append(enriched_theme)
+
+        # 점수 내림차순 정렬
+        scored_themes.sort(key=lambda x: x.get("leader_score", 0), reverse=True)
+        fallback_themes.sort(key=lambda x: float(str(x.get("changeRate", 0))), reverse=True)
+
+        final_themes = scored_themes[:top_n]
+        if len(final_themes) < top_n:
+            needed = top_n - len(final_themes)
+            final_themes.extend(fallback_themes[:needed])
+
+        return final_themes[:top_n]
 
     def _enrich_realtime_integrated_quotes(self, stocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """

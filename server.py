@@ -24,8 +24,11 @@ async def home():
     return FileResponse(INDEX_HTML_PATH)
 
 @app.get("/api/themes")
-async def get_themes(page: int = 1, page_size: int = 50):
-    """Return real-time theme ranking"""
+async def get_themes(leading: bool = True, top_n: int = 6, page: int = 1, page_size: int = 50):
+    """Return real-time leading themes or raw ranking"""
+    if leading:
+        themes = engine.get_leading_themes(top_n=top_n, candidate_count=25)
+        return JSONResponse(content={"groups": themes, "totalCount": len(themes)})
     data = engine.get_theme_ranking(page=page, page_size=page_size)
     return JSONResponse(content=data)
 
